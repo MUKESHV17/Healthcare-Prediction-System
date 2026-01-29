@@ -1,90 +1,153 @@
+/* Professional Professional Theme */
 .diabetes-container {
   display: flex;
-  width: 100%;
+  background-color: #f8fafc;
   min-height: 100vh;
-  background: #f5f7fa;
+  font-family: 'Inter', sans-serif;
 }
 
 .diabetes-main {
   flex: 1;
-  background: #f5f7fa;
-  min-height: 100vh;
   padding: 40px;
   display: flex;
-  justify-content: center;   /* center card horizontally */
+  justify-content: center;
   align-items: flex-start;
+  overflow-y: auto;
 }
-
 
 .diabetes-card {
-  background: #ffffff;
+  background: white;
   width: 100%;
-  max-width: 560px;
-  padding: 32px;
-  border-radius: 14px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  max-width: 800px;
+  /* Wider card */
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eee;
+  animation: fadeIn 0.5s ease-in-out;
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 .diabetes-card h2 {
-  margin-bottom: 5px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 8px;
+  text-align: center;
 }
 
 .diabetes-card p {
-  color: #666;
-  margin-bottom: 20px;
+  text-align: center;
+  color: #7f8c8d;
+  font-size: 14px;
+  margin-bottom: 30px;
+}
+
+/* 2-Column Grid Layout */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Full width for smaller screens */
+@media (max-width: 600px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .form-group {
-  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
 }
 
 .form-group label {
   font-size: 13px;
   font-weight: 600;
-  color: #333;
+  color: #34495e;
+  margin-bottom: 8px;
+  text-transform: capitalize;
 }
 
-
 .form-group input {
-  width: 100%;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #d0d7de;
+  padding: 12px 15px;
+  border-radius: 10px;
+  border: 1px solid #e0e0e0;
   font-size: 14px;
-  background-color: #ffffff;
-  color: #111;
+  background-color: #f9f9f9;
+  color: #333;
+  transition: all 0.3s ease;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #4CAF50;
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.15);
+  border-color: #00c853;
+  /* Match Dashboard Green */
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.1);
+}
+
+.form-group input::placeholder {
+  color: #bdc3c7;
 }
 
 .predict-btn {
   width: 100%;
-  padding: 12px;
-  background: #4CAF50;
+  padding: 15px;
+  background: linear-gradient(135deg, #00c853 0%, #009688 100%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 16px;
-  margin-top: 15px;
+  font-weight: 600;
+  margin-top: 30px;
   cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 15px rgba(0, 200, 83, 0.3);
 }
 
 .predict-btn:hover {
-  background: #43a047;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 200, 83, 0.4);
+}
+
+.predict-btn:active {
+  transform: translateY(0);
 }
 
 .result-box {
-  margin-top: 24px;
-  padding: 16px;
+  margin-top: 25px;
+  padding: 20px;
   background: #e8f5e9;
-  border-radius: 10px;
+  border-left: 5px solid #00c853;
+  border-radius: 8px;
   font-weight: 600;
   text-align: center;
   color: #1b5e20;
+  font-size: 18px;
+  animation: slideIn 0.3s ease-out;
 }
 
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

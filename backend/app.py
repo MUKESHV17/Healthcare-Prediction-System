@@ -126,6 +126,10 @@ def verify_otp():
         UPDATE users SET is_verified = 1 WHERE phone = ?
     """, (phone,))
 
+    # Fetch user details to return to frontend
+    cursor.execute("SELECT first_name, last_name, email FROM users WHERE phone = ?", (phone,))
+    user = cursor.fetchone()
+    
     conn.commit()
     conn.close()
 
@@ -141,7 +145,12 @@ def verify_otp():
 
     return jsonify({
         "message": "OTP verified",
-        "token": token
+        "token": token,
+        "user": {
+            "first_name": user[0],
+            "last_name": user[1],
+            "email": user[2]
+        }
     })
 
 
@@ -158,17 +167,24 @@ def login():
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT password FROM users WHERE email = ?", (email,))
+    cursor.execute("SELECT id, first_name, last_name, password FROM users WHERE email = ?", (email,))
     user = cursor.fetchone()
     conn.close()
 
     if not user:
         return jsonify({"error": "Invalid credentials"}), 401
 
-    if not check_password_hash(user[0], password):
+    if not check_password_hash(user[3], password):
         return jsonify({"error": "Invalid credentials"}), 401
 
-    return jsonify({"message": "Login successful"})
+    return jsonify({
+        "message": "Login successful",
+        "user": {
+            "first_name": user[1],
+            "last_name": user[2],
+            "email": email
+        }
+    })
 
 
 # ---------- DIABETES PREDICTION ----------
@@ -196,6 +212,100 @@ def predict_diabetes():
     return jsonify({
         "prediction": "Diabetic" if prediction == 1 else "Non-Diabetic"
     })
+
+
+# ---------- PROFILE MANAGEMENT ----------
+@app.route("/profile", methods=["GET", "PUT"])
+def profile():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    if request.method == "GET":
+        email = request.args.get("email")
+        if not email:
+            conn.close()
+            return jsonify({"error": "Email required"}), 400
+        
+        cursor.execute("""
+            SELECT first_name, last_name, email, phone, city, dob, pincode, 
+                   address, age, weight, height, profile_pic
+            FROM users WHERE email = ?
+        """, (email,))
+        user = cursor.fetchone()
+        conn.close()
+
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+            
+        return jsonify({
+            "firstName": user[0],
+            "lastName": user[1],
+            "email": user[2],
+            "phone": user[3],
+            "city": user[4],
+            "dob": user[5],
+            "pincode": user[6],
+            "address": user[7],
+            "age": user[8],
+            "weight": user[9],
+            "height": user[10],
+            "profilePic": user[11]
+        })
+
+    if request.method == "PUT":
+        data = request.json
+        email = data.get("email")
+        
+        if not email:
+            conn.close()
+            return jsonify({"error": "Email required for update"}), 400
+
+        cursor.execute("""
+            UPDATE users 
+            SET first_name=?, last_name=?, phone=?, city=?, dob=?, pincode=?, 
+                address=?, age=?, weight=?, height=?, profile_pic=?
+            WHERE email=?
+        """, (
+            data.get("firstName"), data.get("lastName"), data.get("phone"), 
+            data.get("city"), data.get("dob"), data.get("pincode"),
+            data.get("address"), data.get("age"), data.get("weight"), 
+            data.get("height"), data.get("profilePic"), 
+            email
+        ))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Profile updated successfully"})
+
+
+@app.route("/change-password", methods=["POST"])
+def change_password():
+    data = request.json
+    email = data.get("email")
+    current_password = data.get("currentPassword")
+    new_password = data.get("newPassword")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT password FROM users WHERE email = ?", (email,))
+    user = cursor.fetchone()
+    
+    if not user:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+        
+    if not check_password_hash(user[0], current_password):
+        conn.close()
+        return jsonify({"error": "Incorrect current password"}), 401
+        
+    new_hash = generate_password_hash(new_password)
+    
+    cursor.execute("UPDATE users SET password = ? WHERE email = ?", (new_hash, email))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"message": "Password updated successfully"})
 
 
 # ---------- HEART PREDICTION ----------

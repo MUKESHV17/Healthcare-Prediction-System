@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Diabetes from "./pages/Diabetes";
 import Heart from "./pages/Heart";
 import OtpVerify from "./pages/OtpVerify";
+import Profile from "./pages/Profile";
 
 
 
@@ -19,29 +20,37 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
 
-<Route path="/verify-otp" element={<OtpVerify />} />
+
+      <Route path="/verify-otp" element={<OtpVerify />} />
       <Route
-  path="/diabetes"
-  element={isAuthenticated() ? <Diabetes /> : <Navigate to="/login" />}
-/>
+        path="/diabetes"
+        element={isAuthenticated() ? <Diabetes /> : <Navigate to="/login" />}
+      />
 
       <Route
-  path="/heart"
-  element={isAuthenticated() ? <Heart /> : <Navigate to="/login" />}
-/>
+        path="/heart"
+        element={isAuthenticated() ? <Heart /> : <Navigate to="/login" />}
+      />
 
 
-     <Route path="/heart" element={<div>Heart Disease Page</div>} />
-     <Route
-  path="/diabetes"
-  element={isAuthenticated() ? <Diabetes /> : <Navigate to="/login" />}
-/>
+      <Route path="/heart" element={<div>Heart Disease Page</div>} />
+      <Route
+        path="/diabetes"
+        element={isAuthenticated() ? <Diabetes /> : <Navigate to="/login" />}
+      />
 
 
       <Route
         path="/dashboard"
         element={
           isAuthenticated() ? <Dashboard /> : <Navigate to="/login" />
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          isAuthenticated() ? <Profile /> : <Navigate to="/login" />
         }
       />
 

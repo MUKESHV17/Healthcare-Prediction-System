@@ -1,0 +1,245 @@
+import { useState, useEffect } from "react";
+import Sidebar from "../components/Sidebar";
+import "./Profile.css";
+import { Camera } from "lucide-react";
+
+function Profile() {
+    const [user, setUser] = useState({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        city: "",
+        dob: "",
+        pincode: "",
+        address: "",
+        age: "",
+        weight: "",
+        height: "",
+        profilePic: ""
+    });
+
+    const [passwords, setPasswords] = useState({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: ""
+    });
+
+    const [message, setMessage] = useState("");
+    const [error, setError] = useState("");
+
+    const email = localStorage.getItem("email");
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/profile?email=${email}`);
+                const data = await response.json();
+                if (response.ok) {
+                    setUser(data);
+                } else {
+                    setError(data.error);
+                }
+            } catch {
+                setError("Failed to fetch profile");
+            }
+        };
+
+        if (email) {
+            fetchUser();
+        }
+    }, [email]);
+
+    const handleChange = (e) => {
+        setUser({ ...user, [e.target.name]: e.target.value });
+    };
+
+    const handlePasswordChange = (e) => {
+        setPasswords({ ...passwords, [e.target.name]: e.target.value });
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setUser({ ...user, profilePic: reader.result });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        try {
+            const response = await fetch("http://127.0.0.1:5000/profile", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(user)
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setMessage("Profile updated successfully!");
+                // Update local storage names if changed
+                localStorage.setItem("firstName", user.firstName);
+                localStorage.setItem("lastName", user.lastName);
+                setTimeout(() => setMessage(""), 3000);
+            } else {
+                setError(data.error);
+                setTimeout(() => setError(""), 3000);
+            }
+        } catch {
+            setError("Failed to update profile");
+        }
+    };
+
+    const handleChangePassword = async () => {
+        if (passwords.newPassword !== passwords.confirmPassword) {
+            setError("New passwords do not match");
+            return;
+        }
+
+        try {
+            const response = await fetch("http://127.0.0.1:5000/change-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: user.email,
+                    currentPassword: passwords.currentPassword,
+                    newPassword: passwords.newPassword
+                })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setMessage("Password changed successfully");
+                setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                setTimeout(() => setMessage(""), 3000);
+            } else {
+                setError(data.error);
+                setTimeout(() => setError(""), 3000);
+            }
+        } catch {
+            setError("Failed to change password");
+        }
+    };
+
+    return (
+        <div className="profile-container">
+            <Sidebar />
+            <div className="profile-main">
+                <div className="profile-header">
+                    <h2>My Profile</h2>
+                </div>
+
+                {message && <div style={{ marginBottom: "20px", color: "green", fontWeight: "bold" }}>{message}</div>}
+                {error && <div style={{ marginBottom: "20px", color: "red", fontWeight: "bold" }}>{error}</div>}
+
+                <div className="profile-content">
+                    {/* Left Column */}
+                    <div className="profile-left">
+                        <div className="avatar-card">
+                            <div className="avatar-wrapper">
+                                <img
+                                    src={user.profilePic || "https://randomuser.me/api/portraits/men/32.jpg"}
+                                    alt="Profile"
+                                    className="profile-avatar"
+                                />
+                            </div>
+                            <label className="upload-btn">
+                                <Camera size={16} style={{ marginBottom: "-3px", marginRight: "5px" }} />
+                                Change Photo
+                                <input type="file" hidden accept="image/*" onChange={handleFileChange} />
+                            </label>
+                        </div>
+
+                        <div className="password-card">
+                            <h3>Change Password</h3>
+                            <input
+                                type="password"
+                                name="currentPassword"
+                                placeholder="Current Password"
+                                className="password-input"
+                                value={passwords.currentPassword}
+                                onChange={handlePasswordChange}
+                            />
+                            <input
+                                type="password"
+                                name="newPassword"
+                                placeholder="New Password"
+                                className="password-input"
+                                value={passwords.newPassword}
+                                onChange={handlePasswordChange}
+                            />
+                            <input
+                                type="password"
+                                name="confirmPassword"
+                                placeholder="Confirm Password"
+                                className="password-input"
+                                value={passwords.confirmPassword}
+                                onChange={handlePasswordChange}
+                            />
+                            <button className="password-btn" onClick={handleChangePassword}>Update Password</button>
+                        </div>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="details-card">
+                        <h3>Personal Details</h3>
+                        <div className="profile-form-grid">
+                            <div className="profile-form-group">
+                                <label>First Name</label>
+                                <input name="firstName" value={user.firstName || ""} onChange={handleChange} />
+                            </div>
+                            <div className="profile-form-group">
+                                <label>Last Name</label>
+                                <input name="lastName" value={user.lastName || ""} onChange={handleChange} />
+                            </div>
+                            <div className="profile-form-group full-width">
+                                <label>Email</label>
+                                <input value={user.email || ""} disabled />
+                            </div>
+                            <div className="profile-form-group">
+                                <label>Phone</label>
+                                <input name="phone" value={user.phone || ""} onChange={handleChange} />
+                            </div>
+                            <div className="profile-form-group">
+                                <label>Date of Birth</label>
+                                <input type="date" name="dob" value={user.dob || ""} onChange={handleChange} />
+                            </div>
+                            <div className="profile-form-group">
+                                <label>Age</label>
+                                <input type="number" name="age" value={user.age || ""} onChange={handleChange} />
+                            </div>
+                            <div className="profile-form-group">
+                                <label>Gender</label>
+                                <input value="Male" disabled /> {/* Simplification for now */}
+                            </div>
+                            <div className="profile-form-group">
+                                <label>Height (cm)</label>
+                                <input type="number" name="height" value={user.height || ""} onChange={handleChange} />
+                            </div>
+                            <div className="profile-form-group">
+                                <label>Weight (kg)</label>
+                                <input type="number" name="weight" value={user.weight || ""} onChange={handleChange} />
+                            </div>
+                            <div className="profile-form-group full-width">
+                                <label>Address</label>
+                                <input name="address" value={user.address || ""} onChange={handleChange} placeholder="Street Address" />
+                            </div>
+                            <div className="profile-form-group">
+                                <label>City</label>
+                                <input name="city" value={user.city || ""} onChange={handleChange} />
+                            </div>
+                            <div className="profile-form-group">
+                                <label>Pincode</label>
+                                <input name="pincode" value={user.pincode || ""} onChange={handleChange} />
+                            </div>
+                        </div>
+                        <button className="save-btn" onClick={handleSaveProfile}>Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default Profile;

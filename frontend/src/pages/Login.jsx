@@ -21,6 +21,9 @@ function Login() {
 
     if (response.ok) {
       localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("firstName", data.user.first_name);
+      localStorage.setItem("lastName", data.user.last_name);
+      localStorage.setItem("email", data.user.email);
       navigate("/dashboard");
     } else {
       alert(data.error);

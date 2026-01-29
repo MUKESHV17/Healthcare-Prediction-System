@@ -81,6 +81,7 @@ function Signup() {
     if (response.ok) {
       // ✅ OTP FLOW HANDOFF
       localStorage.setItem("phone", formData.phone);
+       
       navigate("/verify-otp");
     } else {
       alert(data.error || "Signup failed");

@@ -39,28 +39,32 @@ function OtpVerify() {
   };
 
   const handleVerify = async () => {
-  if (otp.length !== 6) {
-    alert("Enter complete OTP");
-    return;
-  }
+    if (otp.length !== 6) {
+      alert("Enter complete OTP");
+      return;
+    }
 
-  const phone = localStorage.getItem("phone");
+    const phone = localStorage.getItem("phone");
 
-  const res = await fetch("http://127.0.0.1:5000/verify-otp", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, otp })
-  });
+    const res = await fetch("http://127.0.0.1:5000/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, otp })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (res.ok) {
-    localStorage.setItem("token", data.token);
-    navigate("/dashboard");
-  } else {
-    alert(data.error);
-  }
-};
+    if (res.ok) {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("firstName", data.user.first_name);
+      localStorage.setItem("lastName", data.user.last_name);
+      localStorage.setItem("email", data.user.email);
+      navigate("/dashboard");
+    } else {
+      alert(data.error);
+    }
+  };
 
   return (
     <div className="otp-page">
