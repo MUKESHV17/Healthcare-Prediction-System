@@ -1,0 +1,90 @@
+.diabetes-container {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.diabetes-main {
+  flex: 1;
+  background: #f5f7fa;
+  min-height: 100vh;
+  padding: 40px;
+  display: flex;
+  justify-content: center;   /* center card horizontally */
+  align-items: flex-start;
+}
+
+
+.diabetes-card {
+  background: #ffffff;
+  width: 100%;
+  max-width: 560px;
+  padding: 32px;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+
+.diabetes-card h2 {
+  margin-bottom: 5px;
+}
+
+.diabetes-card p {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #d0d7de;
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #111;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.15);
+}
+
+.predict-btn {
+  width: 100%;
+  padding: 12px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  margin-top: 15px;
+  cursor: pointer;
+}
+
+.predict-btn:hover {
+  background: #43a047;
+}
+
+.result-box {
+  margin-top: 24px;
+  padding: 16px;
+  background: #e8f5e9;
+  border-radius: 10px;
+  font-weight: 600;
+  text-align: center;
+  color: #1b5e20;
+}
+

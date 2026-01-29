@@ -1,0 +1,43 @@
+.otp-page {
+  min-height: 100vh;
+  background: #f5f7fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.otp-card {
+  background: white;
+  padding: 40px;
+  border-radius: 14px;
+  width: 400px;
+  text-align: center;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
+}
+
+.otp-boxes {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 25px 0;
+}
+
+.otp-boxes input {
+  width: 45px;
+  height: 45px;
+  font-size: 18px;
+  text-align: center;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.verify-btn {
+  width: 100%;
+  padding: 12px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
