@@ -24,7 +24,8 @@ function Login() {
       localStorage.setItem("firstName", data.user.first_name);
       localStorage.setItem("lastName", data.user.last_name);
       localStorage.setItem("email", data.user.email);
-      navigate("/dashboard");
+      localStorage.setItem("role", data.user.role);
+      navigate(data.user.role === "doctor" ? "/doctor-dashboard" : "/dashboard");
     } else {
       alert(data.error);
     }

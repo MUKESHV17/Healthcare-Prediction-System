@@ -22,14 +22,23 @@ function Sidebar() {
     navigate("/login");
   };
 
-  const menuItems = [
+  const role = localStorage.getItem("role") || "patient";
+
+  const patientItems = [
     { title: "Overview", icon: <LayoutDashboard size={20} />, path: "/dashboard" },
     { title: "Diabetes", icon: <Activity size={20} />, path: "/diabetes" },
     { title: "Heart Health", icon: <Heart size={20} />, path: "/heart" },
-    { title: "Appointment", icon: <Calendar size={20} />, path: "/appointments" },
-    { title: "Message", icon: <MessageSquare size={20} />, path: "/messages" },
-    { title: "Community", icon: <Users size={20} />, path: "/community" },
+    { title: "Hospitals", icon: <Users size={20} />, path: "/hospitals" }, // For map
+    { title: "Appointments", icon: <Calendar size={20} />, path: "/appointments" }, // Shared
   ];
+
+  const doctorItems = [
+    { title: "Doctor Panel", icon: <LayoutDashboard size={20} />, path: "/doctor-dashboard" },
+    { title: "Schedule", icon: <Calendar size={20} />, path: "/doctor-dashboard" },
+    { title: "Messages", icon: <MessageSquare size={20} />, path: "/messages" },
+  ];
+
+  const menuItems = role === "doctor" ? doctorItems : patientItems;
 
   return (
     <div style={{
@@ -49,8 +58,12 @@ function Sidebar() {
           <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSR8QDbNkhSgU66jWBkUK24Ckw-9pgkBkmG8g&s" alt="Logo" width="40" style={{ borderRadius: "50%" }} />
         </div>
         <div>
-          <h3 style={{ margin: 0, fontSize: "18px", color: "#333" }}>HealthCare</h3>
-          <p style={{ margin: 0, fontSize: "10px", color: "#888" }}>Diagnosis</p>
+          <h3 style={{ margin: 0, fontSize: "18px", color: "#333" }}>
+            {localStorage.getItem("firstName") || "HealthCare"}
+          </h3>
+          <p style={{ margin: 0, fontSize: "10px", color: "#888" }}>
+            {localStorage.getItem("role") === "doctor" ? "Medical Professional" : "Diagnosis"}
+          </p>
         </div>
       </div>
 

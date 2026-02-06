@@ -16,7 +16,8 @@ function Profile() {
         age: "",
         weight: "",
         height: "",
-        profilePic: ""
+        profilePic: "",
+        gender: "Male"
     });
 
     const [passwords, setPasswords] = useState({
@@ -33,10 +34,11 @@ function Profile() {
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const response = await fetch(`http://127.0.0.1:5000/profile?email=${email}`);
+                // Fixed logic to use /api/user/profile as implemented in backend
+                const response = await fetch(`http://127.0.0.1:5000/api/user/profile?email=${email}`);
                 const data = await response.json();
                 if (response.ok) {
-                    setUser(data);
+                    setUser(prev => ({ ...prev, ...data }));
                 } else {
                     setError(data.error);
                 }
@@ -71,10 +73,11 @@ function Profile() {
 
     const handleSaveProfile = async () => {
         try {
-            const response = await fetch("http://127.0.0.1:5000/profile", {
+            // Fixed logic to use /api/user/profile as implemented in backend
+            const response = await fetch("http://127.0.0.1:5000/api/user/profile", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(user)
+                body: JSON.stringify({ ...user, email })
             });
             const data = await response.json();
             if (response.ok) {
@@ -211,7 +214,11 @@ function Profile() {
                             </div>
                             <div className="profile-form-group">
                                 <label>Gender</label>
-                                <input value="Male" disabled /> {/* Simplification for now */}
+                                <select name="gender" value={user.gender || "Male"} onChange={handleChange} className="profile-select">
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
                             </div>
                             <div className="profile-form-group">
                                 <label>Height (cm)</label>

@@ -10,11 +10,13 @@ def update_schema():
     
     # List of new columns to add
     new_columns = [
+        ("role", "TEXT DEFAULT 'patient'"),
         ("address", "TEXT"),
         ("age", "INTEGER"),
         ("weight", "REAL"),
         ("height", "REAL"),
-        ("profile_pic", "TEXT")
+        ("profile_pic", "TEXT"),
+        ("gender", "TEXT DEFAULT 'Male'")
     ]
     
     for col_name, col_type in new_columns:
@@ -26,7 +28,22 @@ def update_schema():
                 print(f"Column already exists: {col_name}")
             else:
                 print(f"Error adding {col_name}: {e}")
-                
+    
+    # Create Reports Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            disease_type TEXT,
+            prediction TEXT,
+            risk_level TEXT,
+            date TEXT,
+            pdf_path TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    """)
+    print("Checked/Created reports table.")
+
     conn.commit()
     conn.close()
     print("Schema update completed.")

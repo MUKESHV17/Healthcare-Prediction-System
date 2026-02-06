@@ -14,7 +14,8 @@ function Signup() {
     city: "",
     pincode: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    role: "patient"
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -81,7 +82,7 @@ function Signup() {
     if (response.ok) {
       // ✅ OTP FLOW HANDOFF
       localStorage.setItem("phone", formData.phone);
-       
+
       navigate("/verify-otp");
     } else {
       alert(data.error || "Signup failed");
@@ -104,6 +105,19 @@ function Signup() {
                 value={formData.firstName}
                 onChange={handleChange}
               />
+            </div>
+
+            <div className="form-group">
+              <label>Role</label>
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }}
+              >
+                <option value="patient">Patient</option>
+                <option value="doctor">Doctor</option>
+              </select>
             </div>
 
             <div className="form-group">
@@ -213,8 +227,8 @@ function Signup() {
             Already have an account? <a href="/login">Login</a>
           </p>
         </form>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }
 

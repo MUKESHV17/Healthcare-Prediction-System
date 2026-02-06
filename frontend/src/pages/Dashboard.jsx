@@ -9,11 +9,13 @@ function Dashboard() {
     firstName: localStorage.getItem("firstName") || "User",
     profilePic: ""
   });
+  const [appointments, setAppointments] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     const email = localStorage.getItem("email");
     if (email) {
+      // Fetch user profile
       fetch(`http://127.0.0.1:5000/profile?email=${email}`)
         .then(res => res.json())
         .then(data => {
@@ -22,6 +24,16 @@ function Dashboard() {
           }
         })
         .catch(err => console.error("Failed to load profile", err));
+
+      // Fetch appointments
+      fetch(`http://127.0.0.1:5000/appointments?email=${email}`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setAppointments(data);
+          }
+        })
+        .catch(err => console.error("Failed to load appointments", err));
     }
   }, []);
 
@@ -40,6 +52,9 @@ function Dashboard() {
           </div>
 
           <div className="header-actions">
+            <button className="icon-btn" onClick={() => navigate("/history")} title="History">
+              <Activity size={20} />
+            </button>
             <button className="icon-btn"><Mail size={20} /></button>
             <button className="icon-btn"><Bell size={20} /></button>
             <img
@@ -128,54 +143,44 @@ function Dashboard() {
 
         {/* Bottom Section */}
         <div className="bottom-grid">
-
-          {/* Appointments */}
+          {/* Appointments Section */}
           <div className="appointments-section">
-            <div className="section-header">Appointment</div>
+            <div className="section-header">My Appointments</div>
             <table className="appointments-table">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Dr Name</th>
-                  <th>Phone</th>
+                  <th>Hospital</th>
+                  <th>Doctor</th>
                   <th>Date</th>
                   <th>Time</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>#ID12377</td>
-                  <td>
-                    <div className="doctor-info-cell">
-                      <span>Abdul Khodr</span>
-                    </div>
-                  </td>
-                  <td>(+91) 2237363</td>
-                  <td>July 6, 2025</td>
-                  <td>10:30 AM</td>
-                </tr>
-                <tr>
-                  <td>#ID12378</td>
-                  <td>
-                    <div className="doctor-info-cell">
-                      <span>Franklin Kondang</span>
-                    </div>
-                  </td>
-                  <td>(+91) 2237363</td>
-                  <td>July 7, 2025</td>
-                  <td>10:30 AM</td>
-                </tr>
-                <tr>
-                  <td>#ID12377</td>
-                  <td>
-                    <div className="doctor-info-cell">
-                      <span>Abdul Khodr</span>
-                    </div>
-                  </td>
-                  <td>(+91) 2237363</td>
-                  <td>July 8, 2025</td>
-                  <td>10:30 AM</td>
-                </tr>
+                {appointments && appointments.length > 0 ? appointments.map((app) => (
+                  <tr key={app.id}>
+                    <td>{app.hospital}</td>
+                    <td>{app.name}</td>
+                    <td>{app.date}</td>
+                    <td>{app.time}</td>
+                    <td>
+                      <span style={{
+                        padding: "4px 10px",
+                        borderRadius: "20px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        background: app.status === "Confirmed" ? "#e8f5e9" : app.status === "Rejected" ? "#ffebee" : "#fff3e0",
+                        color: app.status === "Confirmed" ? "#2e7d32" : app.status === "Rejected" ? "#c62828" : "#ef6c00"
+                      }}>
+                        {app.status}
+                      </span>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>No appointments found.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -201,11 +206,8 @@ function Dashboard() {
                 <span className="visit-time">{doctor.time}</span>
               </div>
             ))}
-
           </div>
-
         </div>
-
       </div>
     </div>
   );
