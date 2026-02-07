@@ -16,7 +16,7 @@ function Dashboard() {
     const email = localStorage.getItem("email");
     if (email) {
       // Fetch user profile
-      fetch(`http://127.0.0.1:5000/profile?email=${email}`)
+      fetch(`http://127.0.0.1:5001/api/user/profile?email=${email}`)
         .then(res => res.json())
         .then(data => {
           if (data.firstName) {
@@ -26,7 +26,7 @@ function Dashboard() {
         .catch(err => console.error("Failed to load profile", err));
 
       // Fetch appointments
-      fetch(`http://127.0.0.1:5000/appointments?email=${email}`)
+      fetch(`http://127.0.0.1:5001/appointments?email=${email}`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) {

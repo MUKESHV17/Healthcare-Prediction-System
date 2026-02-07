@@ -23,7 +23,7 @@ function Diabetes() {
   useEffect(() => {
     const email = localStorage.getItem("email");
     if (email) {
-      fetch(`http://127.0.0.1:5000/api/user/profile?email=${email}`)
+      fetch(`http://127.0.0.1:5001/api/user/profile?email=${email}`)
         .then((res) => res.json())
         .then((data) => {
           if (!data.error) {
@@ -74,13 +74,36 @@ function Diabetes() {
     if (email) data.append("email", email);
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/predict/diabetes", {
+      const response = await fetch("http://127.0.0.1:5001/predict/diabetes", {
         method: "POST",
         body: data
       });
 
       const resData = await response.json();
       setResult(resData);
+
+      // Auto-send Report Email
+      const userEmail = localStorage.getItem("email");
+      if (userEmail && resData) {
+        console.log("Triggering auto-email...");
+        fetch("http://127.0.0.1:5001/generate_report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            patient_data: resData.input_details,
+            prediction: resData.prediction,
+            risk_level: resData.risk_level,
+            clinical_summary: resData.clinical_summary,
+            disease_type: "diabetes",
+            email: userEmail,
+            patient_name: resData.patient_name,
+            gender: resData.patient_sex || gender
+          })
+        }).then(res => {
+          if (res.ok) console.log("Auto-email sent successfully");
+        }).catch(err => console.error("Auto-email failed", err));
+      }
+
     } catch (err) {
       console.error("Error predicting:", err);
     }
@@ -185,7 +208,7 @@ function Diabetes() {
                 <button
                   onClick={async () => {
                     try {
-                      const response = await fetch("http://127.0.0.1:5000/generate_report", {
+                      const response = await fetch("http://127.0.0.1:5001/generate_report", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({

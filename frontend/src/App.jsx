@@ -17,7 +17,7 @@ const Appointments = lazy(() => import("./pages/Appointments"));
 const DoctorDashboard = lazy(() => import("./pages/DoctorDashboard"));
 const History = lazy(() => import("./pages/History"));
 
-const socket = io("http://127.0.0.1:5000");
+const socket = io("http://127.0.0.1:5001");
 
 const isAuthenticated = () => {
   return localStorage.getItem("isLoggedIn") === "true";

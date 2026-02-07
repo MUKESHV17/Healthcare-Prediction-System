@@ -7,7 +7,7 @@ const History = () => {
     const email = localStorage.getItem("email");
 
     useEffect(() => {
-        fetch(`http://127.0.0.1:5000/api/user/reports?email=${email}`)
+        fetch(`http://127.0.0.1:5001/api/user/reports?email=${email}`)
             .then(res => res.json())
             .then(data => {
                 if (data.error) setError(data.error);

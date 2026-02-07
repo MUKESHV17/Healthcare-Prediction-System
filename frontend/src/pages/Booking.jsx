@@ -18,7 +18,7 @@ function Booking() {
 
     useEffect(() => {
         if (hospitalId) {
-            fetch(`http://127.0.0.1:5000/doctors?hospital_id=${hospitalId}&department=${dept}`)
+            fetch(`http://127.0.0.1:5001/doctors?hospital_id=${hospitalId}&department=${dept}`)
                 .then(res => res.json())
                 .then(data => setDoctors(data));
         }
@@ -30,7 +30,7 @@ function Booking() {
             return;
         }
 
-        const res = await fetch("http://127.0.0.1:5000/bookings", {
+        const res = await fetch("http://127.0.0.1:5001/bookings", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

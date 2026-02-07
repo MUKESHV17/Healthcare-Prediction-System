@@ -35,7 +35,7 @@ function Profile() {
         const fetchUser = async () => {
             try {
                 // Fixed logic to use /api/user/profile as implemented in backend
-                const response = await fetch(`http://127.0.0.1:5000/api/user/profile?email=${email}`);
+                const response = await fetch(`http://127.0.0.1:5001/api/user/profile?email=${email}`);
                 const data = await response.json();
                 if (response.ok) {
                     setUser(prev => ({ ...prev, ...data }));
@@ -60,21 +60,56 @@ function Profile() {
         setPasswords({ ...passwords, [e.target.name]: e.target.value });
     };
 
+    const [tempImage, setTempImage] = useState(null);
+    const [cropAlign, setCropAlign] = useState("center"); // top, center, bottom
+
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onloadend = () => {
-                setUser({ ...user, profilePic: reader.result });
+                setTempImage(reader.result);
+                // Default process with center alignment
+                processImage(reader.result, "center");
             };
             reader.readAsDataURL(file);
         }
     };
 
+    const processImage = (imgSrc, alignment) => {
+        setCropAlign(alignment);
+        const img = new Image();
+        img.src = imgSrc;
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
+            // Set canvas to square (min dimension)
+            const minDim = Math.min(img.width, img.height);
+            canvas.width = minDim;
+            canvas.height = minDim;
+
+            // Calculate source coordinates based on alignment
+            let sx = 0, sy = 0;
+            if (img.width > img.height) {
+                // Landscape: Center horizontally
+                sx = (img.width - img.height) / 2;
+            } else {
+                // Portrait: Adjust based on user choice
+                if (alignment === "top") sy = 0;
+                else if (alignment === "center") sy = (img.height - img.width) / 2;
+                else if (alignment === "bottom") sy = img.height - img.width;
+            }
+
+            ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, minDim, minDim);
+            setUser(prev => ({ ...prev, profilePic: canvas.toDataURL() }));
+        };
+    };
+
     const handleSaveProfile = async () => {
         try {
             // Fixed logic to use /api/user/profile as implemented in backend
-            const response = await fetch("http://127.0.0.1:5000/api/user/profile", {
+            const response = await fetch("http://127.0.0.1:5001/api/user/profile", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...user, email })
@@ -102,7 +137,7 @@ function Profile() {
         }
 
         try {
-            const response = await fetch("http://127.0.0.1:5000/change-password", {
+            const response = await fetch("http://127.0.0.1:5001/change-password", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -147,6 +182,42 @@ function Profile() {
                                     className="profile-avatar"
                                 />
                             </div>
+
+                            {tempImage && (
+                                <div style={{ marginBottom: "15px", display: "flex", justifyContent: "center", gap: "5px" }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => processImage(tempImage, "top")}
+                                        style={{
+                                            fontSize: "10px", padding: "4px 8px", borderRadius: "4px", border: "1px solid #ddd",
+                                            background: cropAlign === "top" ? "#00c853" : "white", color: cropAlign === "top" ? "white" : "#333", cursor: "pointer"
+                                        }}
+                                    >
+                                        Top
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => processImage(tempImage, "center")}
+                                        style={{
+                                            fontSize: "10px", padding: "4px 8px", borderRadius: "4px", border: "1px solid #ddd",
+                                            background: cropAlign === "center" ? "#00c853" : "white", color: cropAlign === "center" ? "white" : "#333", cursor: "pointer"
+                                        }}
+                                    >
+                                        Center
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => processImage(tempImage, "bottom")}
+                                        style={{
+                                            fontSize: "10px", padding: "4px 8px", borderRadius: "4px", border: "1px solid #ddd",
+                                            background: cropAlign === "bottom" ? "#00c853" : "white", color: cropAlign === "bottom" ? "white" : "#333", cursor: "pointer"
+                                        }}
+                                    >
+                                        Bottom
+                                    </button>
+                                </div>
+                            )}
+
                             <label className="upload-btn">
                                 <Camera size={16} style={{ marginBottom: "-3px", marginRight: "5px" }} />
                                 Change Photo

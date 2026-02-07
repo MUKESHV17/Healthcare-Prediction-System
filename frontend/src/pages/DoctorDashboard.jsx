@@ -13,13 +13,13 @@ function DoctorDashboard() {
     }, [email]);
 
     const fetchAppointments = async () => {
-        const res = await fetch(`http://127.0.0.1:5000/appointments?email=${email}&role=doctor`);
+        const res = await fetch(`http://127.0.0.1:5001/appointments?email=${email}&role=doctor`);
         const data = await res.json();
         setAppointments(data);
     };
 
     const handleStatusUpdate = async (id, status) => {
-        const res = await fetch("http://127.0.0.1:5000/appointment/status", {
+        const res = await fetch("http://127.0.0.1:5001/appointment/status", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id, status })

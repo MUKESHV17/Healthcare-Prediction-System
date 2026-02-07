@@ -16,6 +16,7 @@ import sqlite3
 import os
 import pickle
 from pdf_utils import extract_data_from_pdf
+from email_service import send_report_email, send_appointment_email
 from health_utils import get_default_values, calculate_risk_level, get_clinical_summary
 from report_generator import generate_pdf_report
 from flask import send_file
@@ -572,6 +573,37 @@ def book_appointment():
     """, (data['patientEmail'], data['doctorId'], data['hospitalId'], data['date'], data['timeSlot']))
     
     conn.commit()
+
+    try:
+        # Fetch details for email
+        cursor.execute("""
+            SELECT u.first_name, u.last_name, h.name, h.lat, h.lng 
+            FROM doctors d
+            JOIN users u ON d.user_id = u.id
+            JOIN hospitals h ON d.hospital_id = h.id
+            WHERE d.id = ? AND h.id = ?
+        """, (data['doctorId'], data['hospitalId']))
+        
+        details = cursor.fetchone()
+        if details:
+            doctor_name = f"{details[0]} {details[1]}"
+            hospital_name = details[2]
+            lat, lng = details[3], details[4]
+            
+            email_details = {
+                "doctor_name": doctor_name,
+                "hospital_name": hospital_name,
+                "date": data['date'],
+                "time": data['timeSlot'],
+                "lat": lat,
+                "lng": lng
+            }
+            
+            print(f"📧 Sending appointment confirmation for {data['patientEmail']}...")
+            send_appointment_email(data['patientEmail'], email_details)
+    except Exception as e:
+        print(f"❌ Failed to send appointment email: {e}")
+
     conn.close()
     return jsonify({"message": "Appointment booked successfully", "status": "Pending Confirmation"})
 
@@ -704,6 +736,11 @@ def generate_report():
                     print(f"Error saving history: {e}")
             conn.close()
 
+        # Send Email Notification
+        if email:
+            print(f"📧 Sending report to {email}...")
+            send_report_email(email, pdf_path, patient_name, disease)
+
         return send_file(pdf_path, as_attachment=True)
     except Exception as e:
         print(f"Error generating PDF: {e}")
@@ -804,4 +841,4 @@ def manage_profile():
         return jsonify({"message": "Profile updated"})
 
 if __name__ == "__main__":
-    socketio.run(app, debug=True, use_reloader=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, use_reloader=True, host='0.0.0.0', port=5001)

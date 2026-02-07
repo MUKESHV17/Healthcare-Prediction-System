@@ -43,7 +43,7 @@ function Hospitals() {
         // 1. Fetch User Profile for Pincode
         const email = localStorage.getItem("email");
         if (email) {
-            fetch(`http://127.0.0.1:5000/profile?email=${email}`)
+            fetch(`http://127.0.0.1:5001/api/user/profile?email=${email}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.pincode) {
@@ -73,7 +73,7 @@ function Hospitals() {
     }, [selectedDept]);
 
     const fetchHospitals = async (lat = null, lng = null, query = "") => {
-        let url = `http://127.0.0.1:5000/hospitals?department=${selectedDept || ""}&search=${query}`;
+        let url = `http://127.0.0.1:5001/hospitals?department=${selectedDept || ""}&search=${query}`;
         if (lat && lng) {
             url += `&lat=${lat}&lng=${lng}`; // Send for sorting/distance calc
         }
@@ -151,7 +151,7 @@ function Hospitals() {
                         {/* 50km Highlighting Circle (Optional visual aid) */}
                         <Circle
                             center={position}
-                            radius={50000}
+                            radius={50010}
                             pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.05 }}
                         />
 
