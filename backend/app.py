@@ -1,7 +1,13 @@
 
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
 from werkzeug.security import generate_password_hash, check_password_hash
 from auth_db import create_users_table, get_connection
 import joblib
@@ -98,7 +104,7 @@ def signup():
 import time
 import jwt
 
-JWT_SECRET = "supersecretkey"   # later move to env
+JWT_SECRET = os.getenv("JWT_SECRET", "supersecretkey")   # load from env with fallback
 JWT_EXPIRY_SECONDS = 60 * 60    # 1 hour
 
 @app.route("/verify-otp", methods=["POST"])

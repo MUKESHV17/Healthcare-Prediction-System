@@ -16,6 +16,8 @@ const Booking = lazy(() => import("./pages/Booking"));
 const Appointments = lazy(() => import("./pages/Appointments"));
 const DoctorDashboard = lazy(() => import("./pages/DoctorDashboard"));
 const History = lazy(() => import("./pages/History"));
+const Landing = lazy(() => import("./pages/Landing"));
+
 
 const socket = io("http://127.0.0.1:5001");
 
@@ -90,7 +92,8 @@ function App() {
           <Route path="/appointments" element={isAuthenticated() ? <Appointments /> : <Navigate to="/login" />} />
           <Route path="/doctor-dashboard" element={isAuthenticated() ? <DoctorDashboard /> : <Navigate to="/login" />} />
           <Route path="/history" element={isAuthenticated() ? <History /> : <Navigate to="/login" />} />
-          <Route path="*" element={<Navigate to="/login" />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Suspense>
     </ErrorBoundary>

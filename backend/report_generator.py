@@ -8,10 +8,13 @@ import datetime
 import io
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
+# import matplotlib.pyplot as plt (Moved to inside function to speed up startup)
 import numpy as np
 
 def generate_chart(data, disease_type):
+    import matplotlib.pyplot as plt
     """
     Generates a bar chart comparing patient values to approximate normal upper limits.
     Returns a BytesIO object containing the chart image.

@@ -1,144 +1,223 @@
-.signup-page {
+/* Signup.css */
+.signup-container {
   min-height: 100vh;
-  width: 100vw;
-  background: #f5f7fa;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Consistent background */
+  background: url('https://images.unsplash.com/photo-1538108149393-fbbd8189718c?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80') no-repeat center center/cover;
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+  padding: 40px 20px;
+  position: relative;
+}
+
+.signup-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(0, 50, 80, 0.85) 0%, rgba(0, 77, 64, 0.75) 100%);
+  z-index: 1;
 }
 
 .signup-card {
-  background: #ffffff;
-  width: 880px;
-  max-width: 92%;
-  padding: 40px;
-  border-radius: 14px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  padding: 50px;
+  border-radius: 25px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 900px;
+  position: relative;
+  z-index: 10;
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-.signup-card h2 {
+.signup-header {
   text-align: center;
-  margin-bottom: 6px;
+  margin-bottom: 40px;
 }
 
-.subtitle {
-  text-align: center;
-  color: #666;
-  margin-bottom: 30px;
+.signup-header h2 {
+  color: #ffffff;
+  margin-bottom: 10px;
+  font-size: 2.2rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.signup-form .grid {
+.signup-header p {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.05rem;
+}
+
+.signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.form-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+}
+
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-}
-
-.form-group.full {
-  grid-column: span 2;
+  gap: 8px;
 }
 
 .form-group label {
-  font-size: 14px;
-  margin-bottom: 6px;
-  color: #333;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-left: 5px;
 }
 
-.form-group input {
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  font-size: 14px;
+.form-group input,
+.form-group select {
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  width: 100%;
 }
 
-.form-group input:focus {
+.form-group input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.form-group select {
+  cursor: pointer;
+}
+
+.form-group select option {
+  background: #333;
+  color: white;
+}
+
+.form-group input:focus,
+.form-group select:focus {
   outline: none;
-  border-color: #4caf50;
+  border-color: #69f0ae;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 10px rgba(105, 240, 174, 0.3);
 }
 
-/* Phone */
-.phone-wrapper {
+/* Phone Input */
+.phone-input-group {
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.phone-input-group .country-code {
+  padding: 12px 15px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-weight: 600;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.phone-input-group input {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Pincode Input */
+.pincode-inputs {
+  display: flex;
+  gap: 12px;
+}
+
+.pincode-inputs input {
+  width: 48px;
+  height: 48px;
+  text-align: center;
+  padding: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* Password Input */
+.password-input-group {
+  position: relative;
   display: flex;
   align-items: center;
 }
 
-.country-code {
-  padding: 12px;
-  background: #f0f0f0;
-  border: 1px solid #ccc;
-  border-right: none;
-  border-radius: 8px 0 0 8px;
-}
-
-.phone-wrapper input {
-  flex: 1;
-  border-radius: 0 8px 8px 0;
-}
-
-/* Pincode */
-.pincode-boxes {
-  display: flex;
-  gap: 8px;
-}
-
-.pincode-boxes input {
-  width: 45px;
-  height: 45px;
-  text-align: center;
-  font-size: 18px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-}
-
-/* Password */
-.password-wrapper {
-  position: relative;
+.password-input-group input {
+  padding-right: 45px;
 }
 
 .eye-icon {
   position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 15px;
   cursor: pointer;
-  font-size: 18px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.2rem;
+  transition: color 0.3s;
 }
 
-/* Date */
-.date-wrapper {
-  position: relative;
+.eye-icon:hover {
+  color: white;
 }
 
-.calendar-icon {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-/* Button */
+/* Buttons */
 .signup-btn {
-  margin-top: 30px;
-  width: 100%;
-  padding: 14px;
-  background: #4caf50;
+  background: linear-gradient(135deg, #00c853 0%, #00bfa5 100%);
   color: white;
   border: none;
-  border-radius: 10px;
-  font-size: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 1.15rem;
+  font-weight: 700;
   cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 15px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
 }
 
 .signup-btn:hover {
-  background: #43a047;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 200, 83, 0.4);
+  background: linear-gradient(135deg, #00e676 0%, #1de9b6 100%);
 }
 
 .login-link {
   text-align: center;
-  margin-top: 18px;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.login-link span {
+  color: #69f0ae;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 5px;
+  transition: color 0.2s ease;
+}
+
+.login-link span:hover {
+  color: #b9f6ca;
+  text-decoration: underline;
 }

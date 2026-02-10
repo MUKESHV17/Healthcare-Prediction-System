@@ -91,19 +91,34 @@ function Signup() {
 
   // -------------------- JSX --------------------
   return (
-    <div className="signup-page">
+    <div className="signup-container">
       <div className="signup-card">
-        <h2>New Patient Registration</h2>
-        <p className="subtitle">Enter your details to create an account</p>
+        <div className="signup-header">
+          <h2>Create Account</h2>
+          <p>Join us to monitor your health better</p>
+        </div>
 
         <form onSubmit={handleSignup} className="signup-form">
-          <div className="grid">
+          <div className="form-grid">
             <div className="form-group">
               <label>First Name</label>
               <input
                 name="firstName"
                 value={formData.firstName}
                 onChange={handleChange}
+                placeholder="Ex. John"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Last Name</label>
+              <input
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                placeholder="Ex. Doe"
+                required
               />
             </div>
 
@@ -113,7 +128,6 @@ function Signup() {
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd" }}
               >
                 <option value="patient">Patient</option>
                 <option value="doctor">Doctor</option>
@@ -121,25 +135,14 @@ function Signup() {
             </div>
 
             <div className="form-group">
-              <label>Last Name</label>
-              <input
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="form-group">
               <label>Date of Birth</label>
-              <div className="date-wrapper">
-                <input
-                  type="date"
-                  name="dob"
-                  value={formData.dob}
-                  onChange={handleChange}
-                />
-                <span className="calendar-icon">📅</span>
-              </div>
+              <input
+                type="date"
+                name="dob"
+                value={formData.dob}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             <div className="form-group">
@@ -149,18 +152,21 @@ function Signup() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
+                placeholder="Ex. john.doe@gmail.com"
+                required
               />
             </div>
 
             <div className="form-group">
               <label>Phone</label>
-              <div className="phone-wrapper">
+              <div className="phone-input-group">
                 <span className="country-code">+91</span>
                 <input
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="Enter phone number"
+                  placeholder="9876543210"
+                  required
                 />
               </div>
             </div>
@@ -171,12 +177,14 @@ function Signup() {
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
+                placeholder="Ex. New York"
+                required
               />
             </div>
 
-            <div className="form-group">
+            <div className="form-group pincode-group">
               <label>Pincode</label>
-              <div className="pincode-boxes">
+              <div className="pincode-inputs">
                 {[...Array(6)].map((_, index) => (
                   <input
                     key={index}
@@ -185,38 +193,43 @@ function Signup() {
                     ref={(el) => (pincodeRefs.current[index] = el)}
                     onChange={(e) => handlePincodeChange(e, index)}
                     onKeyDown={(e) => handlePincodeBackspace(e, index)}
+                    value={formData.pincode[index] || ""}
                   />
                 ))}
               </div>
             </div>
-          </div>
 
-          <div className="form-group full">
-            <label>Create Password</label>
-            <div className="password-wrapper">
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-              />
-              <span
-                className="eye-icon"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? "🙈" : "👁️"}
-              </span>
+            <div className="form-group">
+              <label>Password</label>
+              <div className="password-input-group">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Create a password"
+                  required
+                />
+                <span
+                  className="eye-icon"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? "🙈" : "👁️"}
+                </span>
+              </div>
             </div>
-          </div>
 
-          <div className="form-group full">
-            <label>Confirm Password</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-            />
+            <div className="form-group">
+              <label>Confirm Password</label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Confirm your password"
+                required
+              />
+            </div>
           </div>
 
           <button type="submit" className="signup-btn">
@@ -224,11 +237,11 @@ function Signup() {
           </button>
 
           <p className="login-link">
-            Already have an account? <a href="/login">Login</a>
+            Already have an account? <span onClick={() => navigate("/login")}>Login</span>
           </p>
         </form>
-      </div >
-    </div >
+      </div>
+    </div>
   );
 }
 
