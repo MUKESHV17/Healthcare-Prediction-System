@@ -70,7 +70,7 @@ function OtpVerify() {
     <div className="otp-page">
       <div className="otp-card">
         <h2>Verify OTP</h2>
-        <p>Enter the 6-digit OTP sent to your mobile</p>
+        <p>Enter the 6-digit OTP sent to your email and mobile</p>
 
         <div className="otp-boxes">
           {[...Array(6)].map((_, index) => (

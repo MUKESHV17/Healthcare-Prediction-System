@@ -24,7 +24,7 @@ function Hospitals() {
     const queryParams = new URLSearchParams(location.search);
     const recommendedDept = queryParams.get("department") || "";
 
-    const [position, setPosition] = useState([19.0760, 72.8777]); // Mumbai default
+    const [position, setPosition] = useState([9.9252, 78.1198]); // Madurai default (User Preference)
     const [hospitals, setHospitals] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedDept, setSelectedDept] = useState(recommendedDept);

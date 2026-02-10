@@ -1,40 +1,41 @@
-
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room
 from dotenv import load_dotenv
 import os
-
-# Load environment variables from .env file
-load_dotenv()
-from werkzeug.security import generate_password_hash, check_password_hash
-from auth_db import create_users_table, get_connection
 import joblib
 import numpy as np
 import json
-from otp_utils import generate_otp, otp_expiry
-from auth_db import create_otp_table
 import time
 import jwt
 import datetime
-import sqlite3
-import os
-import pickle
-from pdf_utils import extract_data_from_pdf
-from email_service import send_report_email, send_appointment_email
-from health_utils import get_default_values, calculate_risk_level, get_clinical_summary
-from report_generator import generate_pdf_report
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask import send_file
 
+# Local Imports
+from otp_utils import generate_otp, otp_expiry
+from pdf_utils import extract_data_from_pdf
+from email_service import send_report_email, send_appointment_email, send_otp_email, send_welcome_email
+from health_utils import get_default_values, calculate_risk_level, get_clinical_summary
+from report_generator import generate_pdf_report
+from models import db, User, Hospital, Doctor, Appointment, Notification, Report, OTP, Message
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Initialize DB
-create_users_table()
-create_otp_table()
+# Database Configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite:///users.db") # Fallback for dev if needed, but prefer Postgres
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db.init_app(app)
+
+# Initialize Tables (if not exist)
+with app.app_context():
+    db.create_all()
 
 # Load ML models
 diabetes_model = joblib.load("../models/diabetes_model.pkl")
@@ -46,12 +47,10 @@ heart_scaler = joblib.load("../models/heart_disease_scaler.pkl")
 with open("../models/heart_features.json", "r") as f:
     heart_features = json.load(f)
 
-
 # ---------- HOME ----------
 @app.route("/")
 def home():
-    return "Healthcare Prediction API is running"
-
+    return "Healthcare Prediction API is running (PostgreSQL)"
 
 # ---------- SIGNUP ----------
 @app.route("/signup", methods=["POST"])
@@ -66,45 +65,47 @@ def signup():
     city = data.get("city")
     pincode = data.get("pincode")
     password = generate_password_hash(data.get("password"))
-    role = data.get("role", "patient") # Default to patient
-
-    conn = get_connection()
-    cursor = conn.cursor()
+    role = data.get("role", "patient")
 
     # Check existing user
-    cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
-    if cursor.fetchone():
-        conn.close()
+    if User.query.filter_by(email=email).first():
         return jsonify({"error": "User already exists"}), 400
 
-    # Insert user (not verified yet)
-    cursor.execute("""
-        INSERT INTO users 
-        (first_name, last_name, dob, email, phone, city, pincode, password, is_verified, role)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
-    """, (first_name, last_name, dob, email, phone, city, pincode, password, role))
+    # Create new user
+    new_user = User(
+        first_name=first_name,
+        last_name=last_name,
+        dob=dob,
+        email=email,
+        phone=phone,
+        city=city,
+        pincode=pincode,
+        password=password,
+        role=role,
+        is_verified=0
+    )
+    db.session.add(new_user)
+    db.session.commit()
 
     # Generate OTP
-    otp = generate_otp()
+    otp_code = generate_otp()
     expiry = otp_expiry()
 
-    cursor.execute(
-        "INSERT INTO otp_codes (phone, otp, expires_at) VALUES (?, ?, ?)",
-        (phone, otp, expiry)
-    )
+    new_otp = OTP(phone=phone, otp=otp_code, expires_at=expiry)
+    db.session.add(new_otp)
+    db.session.commit()
 
-    conn.commit()
-    conn.close()
-
-    print(f"OTP for {phone} is {otp}")  # MOCK SMS
+    print(f"OTP for {phone} is {otp_code}")  # MOCK SMS
+    
+    # Send OTP Email
+    # Note: Signup receives email, but we associated phone with OTP. Ideally send to email too if we use email for OTP.
+    # User asked to send to user mail.
+    if email:
+         send_otp_email(email, otp_code)
 
     return jsonify({"message": "OTP sent successfully"})
 
-
-import time
-import jwt
-
-JWT_SECRET = os.getenv("JWT_SECRET", "supersecretkey")   # load from env with fallback
+JWT_SECRET = os.getenv("JWT_SECRET", "supersecretkey")
 JWT_EXPIRY_SECONDS = 60 * 60    # 1 hour
 
 @app.route("/verify-otp", methods=["POST"])
@@ -114,66 +115,49 @@ def verify_otp():
         return jsonify({"error": "Invalid JSON"}), 400
 
     phone = data.get("phone")
-    otp = data.get("otp")
+    otp_input = data.get("otp")
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    # Get latest OTP
+    otp_record = OTP.query.filter_by(phone=phone).order_by(OTP.id.desc()).first()
 
-    cursor.execute("""
-        SELECT otp, expires_at FROM otp_codes
-        WHERE phone = ?
-        ORDER BY id DESC LIMIT 1
-    """, (phone,))
-
-    record = cursor.fetchone()
-
-    if not record:
-        conn.close()
+    if not otp_record:
         return jsonify({"error": "OTP not found"}), 400
 
-    saved_otp, expires_at = record
-
-    if time.time() > expires_at:
-        conn.close()
+    if time.time() > otp_record.expires_at:
         return jsonify({"error": "OTP expired"}), 400
 
-    if otp != saved_otp:
-        conn.close()
+    if otp_input != otp_record.otp:
         return jsonify({"error": "Invalid OTP"}), 400
 
     # Mark user verified
-    cursor.execute("""
-        UPDATE users SET is_verified = 1 WHERE phone = ?
-    """, (phone,))
+    user = User.query.filter_by(phone=phone).first()
+    if user:
+        user.is_verified = 1
+        db.session.commit()
 
-    # Fetch user details to return to frontend
-    cursor.execute("SELECT first_name, last_name, email FROM users WHERE phone = ?", (phone,))
-    user = cursor.fetchone()
-    
-    conn.commit()
-    conn.close()
+        # Generate JWT
+        token = jwt.encode(
+            {
+                "phone": phone,
+                "exp": time.time() + JWT_EXPIRY_SECONDS
+            },
+            JWT_SECRET,
+            algorithm="HS256"
+        )
 
-    # Generate JWT
-    token = jwt.encode(
-        {
-            "phone": phone,
-            "exp": time.time() + JWT_EXPIRY_SECONDS
-        },
-        JWT_SECRET,
-        algorithm="HS256"
-    )
+        # Send Welcome Email
+        send_welcome_email(user.email, user.first_name)
 
-    return jsonify({
-        "message": "OTP verified",
-        "token": token,
-        "user": {
-            "first_name": user[0],
-            "last_name": user[1],
-            "email": user[2]
-        }
-    })
-
-
+        return jsonify({
+            "message": "OTP verified",
+            "token": token,
+            "user": {
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email": user.email
+            }
+        })
+    return jsonify({"error": "User not found"}), 404
 
 # ---------- LOGIN ----------
 @app.route("/login", methods=["POST"])
@@ -185,30 +169,25 @@ def login():
     email = data.get("email")
     password = data.get("password")
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, first_name, last_name, password, role FROM users WHERE email = ?", (email,))
-    user = cursor.fetchone()
-    conn.close()
+    user = User.query.filter_by(email=email).first()
 
     if not user:
         return jsonify({"error": "Invalid credentials"}), 401
 
-    if not check_password_hash(user[3], password):
+    if not check_password_hash(user.password, password):
         return jsonify({"error": "Invalid credentials"}), 401
 
     return jsonify({
         "message": "Login successful",
         "user": {
-            "first_name": user[1],
-            "last_name": user[2],
-            "email": email,
-            "role": user[4]  # role column
+            "id": user.id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "role": user.role
         }
     })
 
-
-# ---------- DIABETES PREDICTION ----------
 # ---------- DIABETES PREDICTION ----------
 @app.route("/predict/diabetes", methods=["POST"])
 def predict_diabetes():
@@ -238,7 +217,6 @@ def predict_diabetes():
     
     # Helper for Strict Priority: PDF > User > Default
     input_details = {} 
-    # structured as { feature_name: { value: val, source: "Report"|"User"|"Estimated" } }
     
     def resolve_value(keys, default_key):
         # 1. Check PDF
@@ -281,12 +259,9 @@ def predict_diabetes():
         if name == "Pregnancies":
             # Check profile as well if not provided
             if not gender and email:
-                 conn = get_connection()
-                 c = conn.cursor()
-                 c.execute("SELECT gender FROM users WHERE email = ?", (email,))
-                 u = c.fetchone()
-                 if u: gender = u[0]
-                 conn.close()
+                 user = User.query.filter_by(email=email).first()
+                 if user and user.gender:
+                     gender = user.gender
             
             if gender and str(gender).lower() in ["male", "1"]:
                 val = 0.0
@@ -307,9 +282,6 @@ def predict_diabetes():
     result = "Diabetic" if prediction == 1 else "Non-Diabetic"
     risk_level = calculate_risk_level(prob)
     
-    # Consistency Check: Model overrides Report
-    # (Here we don't have an explicit 'report label' passed, but implied logic is Model is Truth)
-    
     summary = get_clinical_summary("diabetes", simple_input_data, risk_level)
     
     return jsonify({
@@ -320,8 +292,8 @@ def predict_diabetes():
         "recommended_department": "Endocrinology" if prediction == 1 else "General",
         "input_data": simple_input_data,
         "input_details": input_details,
-        "patient_name": pdf_data.get("name"), # Return extracted name
-        "patient_sex": pdf_data.get("sex") # Return extracted sex
+        "patient_name": pdf_data.get("name"),
+        "patient_sex": pdf_data.get("sex") 
     })
 
 
@@ -365,7 +337,6 @@ def predict_heart():
         return float(defaults.get(default_key, 0)), "Estimated"
 
     # Feature Mapping (Order matters for model!)
-    # age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal
     feature_config = [
         ("age", (["Age", "age"], "age")),
         ("sex", (["Sex", "sex"], "sex")),
@@ -409,19 +380,9 @@ def predict_heart():
         "recommended_department": "Cardiology" if prediction == 1 else "General",
         "input_data": simple_input_data,
         "input_details": input_details,
-        "patient_name": pdf_data.get("name"), # Return extracted name
-        "patient_sex": pdf_data.get("sex") # Return extracted sex
+        "patient_name": pdf_data.get("name"), 
+        "patient_sex": pdf_data.get("sex") 
     })
-
-
-
-# ---------- PROFILE MANAGEMENT ----------
-# Legacy profile route removed to avoid conflicts with /api/user/profile
-# @app.route("/profile", methods=["GET", "PUT"])
-# def profile():
-#     ... (code commented out) ...
-#     return jsonify({"message": "Deprecated"})
-
 
 @app.route("/change-password", methods=["POST"])
 def change_password():
@@ -430,34 +391,21 @@ def change_password():
     current_password = data.get("currentPassword")
     new_password = data.get("newPassword")
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT password FROM users WHERE email = ?", (email,))
-    user = cursor.fetchone()
+    user = User.query.filter_by(email=email).first()
     
     if not user:
-        conn.close()
         return jsonify({"error": "User not found"}), 404
         
-    if not check_password_hash(user[0], current_password):
-        conn.close()
+    if not check_password_hash(user.password, current_password):
         return jsonify({"error": "Incorrect current password"}), 401
         
-    new_hash = generate_password_hash(new_password)
-    
-    cursor.execute("UPDATE users SET password = ? WHERE email = ?", (new_hash, email))
-    conn.commit()
-    conn.close()
+    user.password = generate_password_hash(new_password)
+    db.session.commit()
     
     return jsonify({"message": "Password updated successfully"})
 
-
 # ---------- HOSPITAL & APPOINTMENT LOGIC ----------
-
 import math
-
-# ... (rest of imports)
 
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371  # Earth radius in km
@@ -476,44 +424,33 @@ def get_hospitals():
     lng = request.args.get("lng", type=float)
     search = request.args.get("search", "").lower()
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    query = "SELECT id, name, address, lat, lng, departments FROM hospitals WHERE 1=1"
-    params = []
+    query = Hospital.query
     
     if dept:
-        query += " AND departments LIKE ?"
-        params.append(f'%"{dept}"%')
+        # Note: SQLite check was simpler, here assumes departments string contains the substring
+        query = query.filter(Hospital._departments.like(f'%"{dept}"%'))
     
     if search:
-        query += " AND (lower(name) LIKE ? OR lower(address) LIKE ?)"
-        params.extend([f"%{search}%", f"%{search}%"])
+        query = query.filter((db.func.lower(Hospital.name).like(f"%{search}%")) | (db.func.lower(Hospital.address).like(f"%{search}%")))
 
-    cursor.execute(query, params)
+    hospitals_db = query.all()
     
     hospitals = []
-    for row in cursor.fetchall():
-        h_id, name, address, h_lat, h_lng, depts = row
-        
-        # Calculate distance if user location provided
+    for h in hospitals_db:
         dist = None
-        if lat and lng:
-            dist = haversine(lat, lng, h_lat, h_lng)
+        if lat and lng and h.lat and h.lng:
+            dist = haversine(lat, lng, h.lat, h.lng)
             
         hospitals.append({
-            "id": h_id,
-            "name": name,
-            "address": address,
-            "lat": h_lat,
-            "lng": h_lng,
-            "departments": json.loads(depts),
+            "id": h.id,
+            "name": h.name,
+            "address": h.address,
+            "lat": h.lat,
+            "lng": h.lng,
+            "departments": h.departments,
             "distance": round(dist, 2) if dist is not None else None
         })
     
-    conn.close()
-    
-    # Sort by distance if available, otherwise by name
     if lat and lng:
         hospitals.sort(key=lambda x: x["distance"] if x["distance"] is not None else float('inf'))
         
@@ -524,93 +461,83 @@ def get_doctors():
     hosp_id = request.args.get("hospital_id")
     dept = request.args.get("department")
     
-    conn = get_connection()
-    cursor = conn.cursor()
+    query = Doctor.query.join(User).add_columns(User.first_name, User.last_name, User.email)
     
-    query = """
-        SELECT d.id, u.first_name, u.last_name, d.department, d.specialty, d.experience, d.availability, d.hospital_id, u.email
-        FROM doctors d
-        JOIN users u ON d.user_id = u.id
-        WHERE 1=1
-    """
-    params = []
     if hosp_id:
-        query += " AND d.hospital_id = ?"
-        params.append(hosp_id)
+        query = query.filter(Doctor.hospital_id == hosp_id)
     if dept:
-        query += " AND d.department = ?"
-        params.append(dept)
+        query = query.filter(Doctor.department == dept)
         
-    cursor.execute(query, params)
+    results = query.all()
     doctors = []
-    for row in cursor.fetchall():
+    
+    for doc, first_name, last_name, email in results:
         doctors.append({
-            "id": row[0],
-            "name": f"{row[1]} {row[2]}",
-            "department": row[3],
-            "specialty": row[4],
-            "experience": row[5],
-            "availability": json.loads(row[6]),
-            "hospitalId": row[7],
-            "email": row[8] # Exposed for demo
+            "id": doc.id,
+            "name": f"{first_name} {last_name}",
+            "department": doc.department,
+            "specialty": doc.specialty,
+            "experience": doc.experience,
+            "availability": doc.availability,
+            "hospitalId": doc.hospital_id,
+            "email": email
         })
-    conn.close()
     return jsonify(doctors)
 
 @app.route("/bookings", methods=["POST"])
 def book_appointment():
     data = request.json
-    conn = get_connection()
-    cursor = conn.cursor()
     
     # Check for double booking
-    cursor.execute("""
-        SELECT id FROM appointments 
-        WHERE doctor_id = ? AND date = ? AND time_slot = ? AND status != 'Rejected'
-    """, (data['doctorId'], data['date'], data['timeSlot']))
+    existing = Appointment.query.filter_by(
+        doctor_id=data['doctorId'], 
+        date=data['date'], 
+        time_slot=data['timeSlot']
+    ).filter(Appointment.status != 'Rejected').first()
     
-    if cursor.fetchone():
-        conn.close()
+    if existing:
         return jsonify({"error": "Slot already booked"}), 400
         
-    cursor.execute("""
-        INSERT INTO appointments (patient_id, doctor_id, hospital_id, date, time_slot)
-        VALUES ((SELECT id FROM users WHERE email = ?), ?, ?, ?, ?)
-    """, (data['patientEmail'], data['doctorId'], data['hospitalId'], data['date'], data['timeSlot']))
-    
-    conn.commit()
+    # Get Patient ID
+    patient = User.query.filter_by(email=data['patientEmail']).first()
+    if not patient:
+         return jsonify({"error": "Patient not found"}), 404
+
+    new_app = Appointment(
+        patient_id=patient.id,
+        doctor_id=data['doctorId'],
+        hospital_id=data['hospitalId'],
+        date=data['date'],
+        time_slot=data['timeSlot']
+    )
+    db.session.add(new_app)
+    db.session.commit()
 
     try:
         # Fetch details for email
-        cursor.execute("""
-            SELECT u.first_name, u.last_name, h.name, h.lat, h.lng 
-            FROM doctors d
-            JOIN users u ON d.user_id = u.id
-            JOIN hospitals h ON d.hospital_id = h.id
-            WHERE d.id = ? AND h.id = ?
-        """, (data['doctorId'], data['hospitalId']))
+        doctor = Doctor.query.get(data['doctorId'])
+        hospital = Hospital.query.get(data['hospitalId'])
+        doc_user = User.query.get(doctor.user_id)
         
-        details = cursor.fetchone()
-        if details:
-            doctor_name = f"{details[0]} {details[1]}"
-            hospital_name = details[2]
-            lat, lng = details[3], details[4]
-            
-            email_details = {
-                "doctor_name": doctor_name,
-                "hospital_name": hospital_name,
-                "date": data['date'],
-                "time": data['timeSlot'],
-                "lat": lat,
-                "lng": lng
-            }
-            
-            print(f"📧 Sending appointment confirmation for {data['patientEmail']}...")
-            send_appointment_email(data['patientEmail'], email_details)
+        doctor_name = f"{doc_user.first_name} {doc_user.last_name}"
+        hospital_name = hospital.name
+        lat, lng = hospital.lat, hospital.lng
+        
+        email_details = {
+            "doctor_name": doctor_name,
+            "hospital_name": hospital_name,
+            "date": data['date'],
+            "time": data['timeSlot'],
+            "lat": lat,
+            "lng": lng
+        }
+        
+        print(f"📧 Sending appointment confirmation for {data['patientEmail']}...")
+        print(f"📧 Sending appointment confirmation for {data['patientEmail']}...")
+        send_appointment_email(data['patientEmail'], email_details, status="Pending Confirmation")
     except Exception as e:
         print(f"❌ Failed to send appointment email: {e}")
 
-    conn.close()
     return jsonify({"message": "Appointment booked successfully", "status": "Pending Confirmation"})
 
 @app.route("/appointments", methods=["GET"])
@@ -618,75 +545,107 @@ def get_appointments():
     email = request.args.get("email")
     role = request.args.get("role")
     
-    conn = get_connection()
-    cursor = conn.cursor()
+    print(f"DEBUG: Fetching appointments for Email: {email}, Role: {role}")
+
+    apps = []
     
     if role == "doctor":
-        query = """
-            SELECT a.id, u.first_name, u.last_name, a.date, a.time_slot, a.status, h.name
-            FROM appointments a
-            JOIN users u ON a.patient_id = u.id
-            JOIN hospitals h ON a.hospital_id = h.id
-            JOIN doctors d ON a.doctor_id = d.id
-            JOIN users ud ON d.user_id = ud.id
-            WHERE ud.email = ?
-        """
-    else:
-        query = """
-            SELECT a.id, ud.first_name, ud.last_name, a.date, a.time_slot, a.status, h.name
-            FROM appointments a
-            JOIN hospitals h ON a.hospital_id = h.id
-            JOIN doctors d ON a.doctor_id = d.id
-            JOIN users ud ON d.user_id = ud.id
-            JOIN users up ON a.patient_id = up.id
-            WHERE up.email = ?
-        """
+        # JOIN appointments a, users u (patient), hospitals h, doctors d, users ud (doctor)
+        # Alias is better.
+        DoctorUser = db.aliased(User)
+        PatientUser = db.aliased(User)
         
-    cursor.execute(query, (email,))
-    apps = []
-    for row in cursor.fetchall():
-        apps.append({
-            "id": row[0],
-            "name": f"{row[1]} {row[2]}",
-            "date": row[3],
-            "time": row[4],
-            "status": row[5],
-            "hospital": row[6]
-        })
-    conn.close()
+        results = db.session.query(Appointment, PatientUser, Hospital)\
+            .join(PatientUser, Appointment.patient_id == PatientUser.id)\
+            .join(Hospital, Appointment.hospital_id == Hospital.id)\
+            .join(Doctor, Appointment.doctor_id == Doctor.id)\
+            .join(DoctorUser, Doctor.user_id == DoctorUser.id)\
+            .filter(DoctorUser.email == email).all()
+
+        for appt, patient, hosp in results:
+             apps.append({
+                "id": appt.id,
+                "name": f"{patient.first_name} {patient.last_name}",
+                "patientId": patient.id,
+                "date": appt.date,
+                "time": appt.time_slot,
+                "status": appt.status,
+                "hospital": hosp.name
+            })
+
+    else:
+        # Patient View
+        DoctorUser = db.aliased(User)
+        
+        results = db.session.query(Appointment, DoctorUser, Hospital)\
+            .join(Doctor, Appointment.doctor_id == Doctor.id)\
+            .join(DoctorUser, Doctor.user_id == DoctorUser.id)\
+            .join(Hospital, Appointment.hospital_id == Hospital.id)\
+            .join(User, Appointment.patient_id == User.id)\
+            .filter(User.email == email).all()
+            
+        for appt, doc_user, hosp in results:
+            apps.append({
+                "id": appt.id,
+                "name": f"{doc_user.first_name} {doc_user.last_name}",
+                "doctorId": doc_user.id,
+                "date": appt.date,
+                "time": appt.time_slot,
+                "status": appt.status,
+                "hospital": hosp.name
+            })
+            
     return jsonify(apps)
 
 @app.route("/appointment/status", methods=["PUT"])
 def update_appointment_status():
     data = request.json
-    conn = get_connection()
-    cursor = conn.cursor()
+    appt = Appointment.query.get(data['id'])
     
-    # Get doctor name for the notification
-    cursor.execute("""
-        SELECT ud.first_name, ud.last_name, up.email, h.name, a.date
-        FROM appointments a
-        JOIN doctors d ON a.doctor_id = d.id
-        JOIN users ud ON d.user_id = ud.id
-        JOIN users up ON a.patient_id = up.id
-        JOIN hospitals h ON a.hospital_id = h.id
-        WHERE a.id = ?
-    """, (data['id'],))
-    info = cursor.fetchone()
+    if appt:
+        appt.status = data['status']
+        db.session.commit()
+        
+        # Get info for notification
+        # We can fetch relationships easily now
+        doctor = Doctor.query.get(appt.doctor_id)
+        doc_user = User.query.get(doctor.user_id)
+        patient_user = User.query.get(appt.patient_id)
+        hospital = Hospital.query.get(appt.hospital_id)
+        
+        msg = f"Your appointment with Dr. {doc_user.first_name} {doc_user.last_name} at {hospital.name} on {appt.date} is {data['status'].lower()}."
+        socketio.emit('notification', {'message': msg, 'email': patient_user.email})
 
-    cursor.execute("UPDATE appointments SET status = ? WHERE id = ?", (data['status'], data['id']))
-    conn.commit()
-    conn.close()
+        # Send Email on Confirmation
+        if data['status'] == "Confirmed":
+             email_details = {
+                "doctor_name": f"{doc_user.first_name} {doc_user.last_name}",
+                "doctor_email": doc_user.email,
+                "hospital_name": hospital.name,
+                "date": appt.date,
+                "time": appt.time_slot,
+                "lat": hospital.lat,
+                "lng": hospital.lng
+            }
+             send_appointment_email(patient_user.email, email_details, status="Confirmed")
+        
+        elif data['status'] == "Rejected":
+             email_details = {
+                "doctor_name": f"{doc_user.first_name} {doc_user.last_name}",
+                "doctor_email": doc_user.email,
+                "hospital_name": hospital.name,
+                "date": appt.date,
+                "time": appt.time_slot
+            }
+             send_appointment_email(patient_user.email, email_details, status="Rejected")
 
-    if info:
-        msg = f"Your appointment with Dr. {info[0]} {info[1]} at {info[3]} on {info[4]} is {data['status'].lower()}."
-        socketio.emit('notification', {'message': msg, 'email': info[2]})
+        # Create notification record
+        notif = Notification(user_id=patient_user.id, message=msg)
+        db.session.add(notif)
+        db.session.commit()
 
-    return jsonify({"message": "Status updated"})
-
-
-
-
+        return jsonify({"message": "Status updated"})
+    return jsonify({"error": "Appointment not found"}), 404
 
 # ---------- REPORT GENERATION ----------
 @app.route("/generate_report", methods=["POST"])
@@ -705,18 +664,14 @@ def generate_report():
     gender = data.get("gender")
     
     try:
-        # If no patient_name or gender provided, try to fetch from user profile
+        # Fetch user details if needed
         if (not patient_name or not gender) and email:
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT first_name, last_name, gender FROM users WHERE email = ?", (email,))
-            u = cursor.fetchone()
+            u = User.query.filter_by(email=email).first()
             if u:
                 if not patient_name:
-                    patient_name = f"{u[0]} {u[1]}"
+                    patient_name = f"{u.first_name} {u.last_name}"
                 if not gender:
-                    gender = u[2]
-            conn.close()
+                    gender = u.gender
 
         if not patient_name:
             patient_name = "Guest Patient"
@@ -725,22 +680,19 @@ def generate_report():
         
         # Save to History
         if email:
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
-            user = cursor.fetchone()
-            if user:
-                user_id = user[0]
+            u = User.query.filter_by(email=email).first()
+            if u:
                 date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-                try:
-                    cursor.execute("""
-                        INSERT INTO reports (user_id, disease_type, prediction, risk_level, date, pdf_path)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    """, (user_id, disease, prediction, risk, date_str, pdf_path))
-                    conn.commit()
-                except Exception as e:
-                    print(f"Error saving history: {e}")
-            conn.close()
+                new_report = Report(
+                    user_id=u.id,
+                    disease_type=disease,
+                    prediction=prediction,
+                    risk_level=risk,
+                    date=date_str,
+                    pdf_path=pdf_path
+                )
+                db.session.add(new_report)
+                db.session.commit()
 
         # Send Email Notification
         if email:
@@ -759,29 +711,19 @@ def get_user_reports():
     if not email:
         return jsonify({"error": "Email required"}), 400
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    reports = Report.query.join(User).filter(User.email == email).order_by(Report.id.desc()).all()
     
-    cursor.execute("""
-        SELECT r.id, r.disease_type, r.prediction, r.risk_level, r.date, r.pdf_path
-        FROM reports r
-        JOIN users u ON r.user_id = u.id
-        WHERE u.email = ?
-        ORDER BY r.id DESC
-    """, (email,))
-    
-    reports = []
-    for row in cursor.fetchall():
-        reports.append({
-            "id": row[0],
-            "disease_type": row[1],
-            "prediction": row[2],
-            "risk_level": row[3],
-            "date": row[4],
-            "pdf_path": row[5]
+    result = []
+    for r in reports:
+        result.append({
+            "id": r.id,
+            "disease_type": r.disease_type,
+            "prediction": r.prediction,
+            "risk_level": r.risk_level,
+            "date": r.date,
+            "pdf_path": r.pdf_path
         })
-    conn.close()
-    return jsonify(reports)
+    return jsonify(result)
 
 # ---------- PROFILE MANAGEMENT ----------
 @app.route("/api/user/profile", methods=["GET", "PUT"])
@@ -793,58 +735,145 @@ def manage_profile():
     if not email:
         return jsonify({"error": "Email required"}), 400
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    user = User.query.filter_by(email=email).first()
 
     if request.method == "GET":
-        cursor.execute("""
-            SELECT first_name, last_name, email, phone, city, dob, pincode, address, age, weight, height, profile_pic, gender 
-            FROM users WHERE email = ?
-        """, (email,))
-        row = cursor.fetchone()
-        conn.close()
-        if row:
+        if user:
+            # Calculate Age if not set but DOB is present
+            if not user.age and user.dob:
+                try:
+                    dob_date = datetime.datetime.strptime(user.dob, "%Y-%m-%d")
+                    today = datetime.date.today()
+                    age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+                    user.age = age
+                    db.session.commit()
+                except ValueError:
+                    pass # Invalid Date Format
+
             return jsonify({
-                "firstName": row[0],
-                "lastName": row[1],
-                "email": row[2],
-                "phone": row[3],
-                "city": row[4],
-                "dob": row[5],
-                "pincode": row[6],
-                "address": row[7],
-                "age": row[8],
-                "weight": row[9],
-                "height": row[10],
-                "profilePic": row[11],
-                "gender": row[12]
+                 "firstName": user.first_name,
+                 "lastName": user.last_name,
+                 "email": user.email,
+                 "phone": user.phone,
+                 "dob": user.dob,
+                 "city": user.city,
+                 "pincode": user.pincode,
+                 "address": user.address,
+                 "age": user.age,
+                 "weight": user.weight,
+                 "height": user.height,
+                 "profilePic": user.profile_pic,
+                 "gender": user.gender
             })
         return jsonify({"error": "User not found"}), 404
 
-    elif request.method == "PUT":
+    if request.method == "PUT":
         data = request.json
-        cursor.execute("""
-            UPDATE users 
-            SET first_name = ?, last_name = ?, phone = ?, city = ?, dob = ?, pincode = ?, address = ?, age = ?, weight = ?, height = ?, profile_pic = ?, gender = ?
-            WHERE email = ?
-        """, (
-            data.get("firstName"), 
-            data.get("lastName"), 
-            data.get("phone"), 
-            data.get("city"), 
-            data.get("dob"), 
-            data.get("pincode"), 
-            data.get("address"), 
-            data.get("age"), 
-            data.get("weight"), 
-            data.get("height"), 
-            data.get("profilePic"),
-            data.get("gender"),
-            email
-        ))
-        conn.commit()
-        conn.close()
-        return jsonify({"message": "Profile updated"})
+        if user:
+            # Update fields
+            user.first_name = data.get("firstName", user.first_name)
+            user.last_name = data.get("lastName", user.last_name)
+            user.dob = data.get("dob", user.dob)
+            
+            # Recalculate age if DOB changes
+            if data.get("dob"):
+                try:
+                    dob_date = datetime.datetime.strptime(data.get("dob"), "%Y-%m-%d")
+                    today = datetime.date.today()
+                    age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+                    user.age = age
+                except:
+                    pass
+            
+            if data.get("age"):
+                 user.age = data.get("age")
+
+            user.gender = data.get("gender", user.gender)
+            user.weight = data.get("weight", user.weight)
+            user.height = data.get("height", user.height)
+            user.address = data.get("address", user.address)
+            user.city = data.get("city", user.city)
+            user.pincode = data.get("pincode", user.pincode)
+            if data.get("profilePic"):
+                user.profile_pic = data.get("profilePic")
+            
+            db.session.commit()
+            return jsonify({"message": "Profile updated successfully"})
+        return jsonify({"error": "User not found"}), 404
+
+# ---------- CHAT SYSTEM ----------
+@app.route("/chat/history/<room_id>", methods=["GET"])
+def get_chat_history(room_id):
+    messages = Message.query.filter_by(room_id=room_id).order_by(Message.timestamp).all()
+    history = []
+    
+    for msg in messages:
+        if not msg.deleted_for_all:
+             history.append({
+                "id": msg.id,
+                "senderId": msg.sender_id,
+                "content": msg.content,
+                "timestamp": msg.timestamp.strftime("%H:%M"),
+                "isRead": msg.is_read,
+                "isDeleted": msg.deleted_for_all
+            })
+    return jsonify(history)
+
+@socketio.on('join')
+def on_join(data):
+    room = data['room']
+    join_room(room)
+
+@socketio.on('send_message')
+def handle_message(data):
+    room = data['room']
+    sender_id = data['senderId']
+    receiver_id = data['receiverId']
+    content = data['content']
+    
+    # Save to DB
+    new_msg = Message(
+        room_id=room,
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        content=content
+    )
+    db.session.add(new_msg)
+    db.session.commit()
+    
+    msg_data = {
+        "id": new_msg.id,
+        "senderId": sender_id,
+        "content": content,
+        "timestamp": datetime.datetime.utcnow().strftime("%H:%M"),
+        "isRead": False
+    }
+    
+    emit('receive_message', msg_data, room=room)
+    
+    # Send Notification
+    receiver = User.query.get(receiver_id)
+    if receiver:
+        sender_user = User.query.get(sender_id)
+        if sender_user:
+            notif_msg = f"New message from {sender_user.first_name}"
+            
+            # Save to DB
+            new_notif = Notification(user_id=receiver.id, message=notif_msg)
+            db.session.add(new_notif)
+            db.session.commit()
+
+            # Emit
+            emit('notification', {'message': notif_msg, 'email': receiver.email}, broadcast=True)
+
+@socketio.on('delete_message')
+def delete_message(data):
+    msg_id = data['id']
+    msg = Message.query.get(msg_id)
+    if msg:
+        msg.deleted_for_all = True
+        db.session.commit()
+        emit('message_deleted', {'id': msg_id}, room=data['room'])
 
 if __name__ == "__main__":
-    socketio.run(app, debug=True, use_reloader=True, host='0.0.0.0', port=5001)
+    socketio.run(app, debug=True, port=5001)

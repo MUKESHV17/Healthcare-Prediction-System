@@ -2,7 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import "./Dashboard.css";
-import { Search, Mail, Bell, Activity, Heart } from "lucide-react";
+import { Search, Mail, Activity, Heart } from "lucide-react";
+import NotificationBell from "./NotificationBell";
 
 function Dashboard() {
   const [user, setUser] = useState({
@@ -56,7 +57,10 @@ function Dashboard() {
               <Activity size={20} />
             </button>
             <button className="icon-btn"><Mail size={20} /></button>
-            <button className="icon-btn"><Bell size={20} /></button>
+
+            <div style={{ marginRight: "10px" }}>
+              <NotificationBell email={localStorage.getItem("email")} />
+            </div>
             <img
               src={user.profilePic || "https://randomuser.me/api/portraits/men/32.jpg"}
               alt="Profile"

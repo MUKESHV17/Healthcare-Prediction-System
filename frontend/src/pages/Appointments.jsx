@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
+import { MessageCircle } from "lucide-react";
+import ChatWindow from "./ChatWindow";
 
 function Appointments() {
     const [appointments, setAppointments] = useState([]);
+    const userId = parseInt(localStorage.getItem("userId"));
+
+    // Chat State
+    const [chatOpen, setChatOpen] = useState(false);
+    const [activeRoom, setActiveRoom] = useState(null);
+    const [chatReceiverId, setChatReceiverId] = useState(null);
+    const [contactName, setContactName] = useState("");
 
     useEffect(() => {
         const email = localStorage.getItem("email");
@@ -15,6 +24,24 @@ function Appointments() {
                 .catch(err => console.error(err));
         }
     }, []);
+
+    const openChat = (app) => {
+        if (!app.doctorId) {
+            alert("Error: Doctor ID not found");
+            return;
+        }
+
+        const pId = userId;
+        const dId = app.doctorId;
+
+        // Same logic: chat_{min}_{max} to match Doctor's room
+        const room = `chat_${Math.min(pId, dId)}_${Math.max(pId, dId)}`;
+
+        setActiveRoom(room);
+        setChatReceiverId(dId);
+        setContactName(app.name);
+        setChatOpen(true);
+    };
 
     return (
         <div style={{ display: "flex", height: "100vh", background: "#f8fafc" }}>
@@ -30,6 +57,7 @@ function Appointments() {
                                 <th style={{ padding: "10px" }}>Date</th>
                                 <th style={{ padding: "10px" }}>Time</th>
                                 <th style={{ padding: "10px" }}>Status</th>
+                                <th style={{ padding: "10px" }}>Chat</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -48,16 +76,34 @@ function Appointments() {
                                             {app.status}
                                         </span>
                                     </td>
+                                    <td style={{ padding: "10px" }}>
+                                        <button
+                                            onClick={() => openChat(app)}
+                                            style={{ background: "#2196f3", color: "white", border: "none", padding: "8px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                            title="Chat with Doctor"
+                                        >
+                                            <MessageCircle size={16} />
+                                        </button>
+                                    </td>
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>No appointments found.</td>
+                                    <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>No appointments found.</td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            <ChatWindow
+                isOpen={chatOpen}
+                onClose={() => setChatOpen(false)}
+                roomId={activeRoom}
+                currentUserId={userId}
+                receiverId={chatReceiverId}
+                contactName={contactName}
+            />
         </div>
     );
 }

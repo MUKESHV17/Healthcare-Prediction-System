@@ -80,29 +80,90 @@ def send_report_email(to_email, pdf_path, patient_name, disease_type):
     """
     return send_email(to_email, subject, body, pdf_path)
 
-def send_appointment_email(to_email, details):
+def send_otp_email(to_email, otp_code):
     """
-    Sends an appointment confirmation email with details.
+    Sends OTP for account verification.
     """
-    subject = f"Appointment Confirmed: Dr. {details['doctor_name']}"
+    subject = "Your Verification Code - MedPro"
+    body = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+            <h2 style="color: #009688;">MedPro Verification</h2>
+            <p>Hello,</p>
+            <p>Your One-Time Password (OTP) for signup is:</p>
+            <h1 style="color: #2196f3; letter-spacing: 5px;">{otp_code}</h1>
+            <p>This code is valid for 10 minutes. Do not share it with anyone.</p>
+            <br>
+            <p>Best Regards,<br>MedPro Team</p>
+        </body>
+    </html>
+    """
+    return send_email(to_email, subject, body)
+
+def send_welcome_email(to_email, name):
+    """
+    Sends welcome email after successful registration.
+    """
+    subject = "Welcome to MedPro! Registration Successful"
+    body = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+            <h2 style="color: #009688;">Welcome to MedPro, {name}!</h2>
+            <p>We are thrilled to have you on board.</p>
+            <p>You can now log in to:</p>
+            <ul>
+                <li>Book appointments with top doctors.</li>
+                <li>Get AI-powered health predictions.</li>
+                <li>Manage your medical reports.</li>
+            </ul>
+            <p><a href="http://localhost:5173/login" style="background-color: #009688; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Login Now</a></p>
+            <br>
+            <p>Best Regards,<br>MedPro Team</p>
+        </body>
+    </html>
+    """
+    return send_email(to_email, subject, body)
+
+def send_appointment_email(to_email, details, status="Confirmed"):
+    """
+    Sends an appointment email (Pending or Confirmed) with details.
+    """
+    subject = f"Appointment {status}: Dr. {details['doctor_name']}"
+    
+    color = "#2196f3"  # Blue for confirmed
+    if status == "Pending Confirmation":
+        color = "#ff9800" # Orange
+    elif status == "Rejected":
+        color = "#f44336" # Red
     
     # Generate Google Maps Link if coords exist
-    map_link = "#"
+    map_link = ""
     if details.get('lat') and details.get('lng'):
-        map_link = f"https://www.google.com/maps?q={details['lat']},{details['lng']}"
+        link = f"https://www.google.com/maps?q={details['lat']},{details['lng']}"
+        map_link = f'<p style="text-align: center; margin-top: 20px;"><a href="{link}" style="background-color: #2196f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Hospital Location</a></p>'
+
+    doctor_email_html = ""
+    if status == "Confirmed" and details.get('doctor_email'):
+         doctor_email_html = f"""
+         <tr style="border-bottom: 1px solid #eee;">
+            <td style="padding: 10px; font-weight: bold;">Doctor Email:</td>
+            <td style="padding: 10px;">{details['doctor_email']}</td>
+         </tr>
+         """
 
     body = f"""
     <html>
         <body style="font-family: Arial, sans-serif; color: #333;">
-            <h2 style="color: #2196f3;">Appointment Confirmation</h2>
+            <h2 style="color: {color};">Appointment {status}</h2>
             <p>Hello,</p>
-            <p>Your appointment has been successfully booked. Here are the details:</p>
+            <p>Your appointment status is <strong>{status}</strong>. Here are the details:</p>
             
             <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                 <tr style="border-bottom: 1px solid #eee;">
                     <td style="padding: 10px; font-weight: bold;">Doctor:</td>
                     <td style="padding: 10px;">Dr. {details['doctor_name']}</td>
                 </tr>
+                 {doctor_email_html}
                 <tr style="border-bottom: 1px solid #eee;">
                     <td style="padding: 10px; font-weight: bold;">Hospital:</td>
                     <td style="padding: 10px;">{details['hospital_name']}</td>
@@ -117,13 +178,11 @@ def send_appointment_email(to_email, details):
                 </tr>
             </table>
 
-            <p style="text-align: center; margin-top: 20px;">
-                <a href="{map_link}" style="background-color: #2196f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Hospital Location</a>
-            </p>
+            {map_link}
 
             <p>Please arrive 15 minutes before your scheduled time.</p>
             <br>
-            <p>Best Regards,<br>Healthcare Prediction System</p>
+            <p>Best Regards,<br>MedPro System</p>
         </body>
     </html>
     """

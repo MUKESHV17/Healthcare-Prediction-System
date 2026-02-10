@@ -77,6 +77,10 @@ function Booking() {
                                 <span style={{ color: "#888", fontSize: "14px" }}>Doctor</span>
                                 <span style={{ fontWeight: "600" }}>{selectedDoctor?.name}</span>
                             </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", background: "#f1fbf4", padding: "8px", borderRadius: "8px" }}>
+                                <span style={{ color: "#2e7d32", fontSize: "14px" }}>Login Email</span>
+                                <span style={{ fontWeight: "600", color: "#2e7d32", userSelect: "all" }}>{selectedDoctor?.email}</span>
+                            </div>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
                                 <span style={{ color: "#888", fontSize: "14px" }}>Date</span>
                                 <span style={{ fontWeight: "600" }}>{selectedDate}</span>
@@ -150,29 +154,37 @@ function Booking() {
                                     />
                                 </div>
 
-                                {selectedDoctor && (
+                                {selectedDoctor && selectedDate && (
                                     <div style={{ background: "white", padding: "20px", borderRadius: "20px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)" }}>
                                         <h3 style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
                                             <Clock size={20} color="#00c853" /> Available Slots
                                         </h3>
                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                                            {selectedDoctor.availability.map(slot => (
-                                                <button
-                                                    key={slot}
-                                                    onClick={() => setSelectedSlot(slot)}
-                                                    style={{
-                                                        padding: "10px",
-                                                        borderRadius: "8px",
-                                                        border: "1px solid #ddd",
-                                                        background: selectedSlot === slot ? "#00c853" : "white",
-                                                        color: selectedSlot === slot ? "white" : "#333",
-                                                        cursor: "pointer",
-                                                        fontWeight: "600"
-                                                    }}
-                                                >
-                                                    {slot}
-                                                </button>
-                                            ))}
+                                            {(() => {
+                                                const dayName = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' });
+                                                const dayData = selectedDoctor.availability.find(d => d.day === dayName);
+                                                const slots = dayData ? dayData.slots : [];
+
+                                                if (slots.length === 0) return <p style={{ color: '#888' }}>No slots available on {dayName}</p>;
+
+                                                return slots.map(slot => (
+                                                    <button
+                                                        key={slot}
+                                                        onClick={() => setSelectedSlot(slot)}
+                                                        style={{
+                                                            padding: "10px",
+                                                            borderRadius: "8px",
+                                                            border: "1px solid #ddd",
+                                                            background: selectedSlot === slot ? "#00c853" : "white",
+                                                            color: selectedSlot === slot ? "white" : "#333",
+                                                            cursor: "pointer",
+                                                            fontWeight: "600"
+                                                        }}
+                                                    >
+                                                        {slot}
+                                                    </button>
+                                                ));
+                                            })()}
                                         </div>
                                     </div>
                                 )}
